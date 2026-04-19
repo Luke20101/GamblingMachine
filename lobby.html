@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>VAULT — Lobby</title>
+<link rel="stylesheet" href="css/global.css"/>
+<style>
+#s-lobby { min-height:100vh; background: radial-gradient(ellipse at 50% 40%,#10101e 0%,var(--bg) 65%);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 80px 1.5rem 2rem; }
+
+.lobby-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(2rem,6vw,5rem);
+  letter-spacing:.3em; color:var(--gold); text-shadow:0 0 40px rgba(240,192,64,.4);
+  margin-bottom:.3rem; text-align:center; }
+.lobby-sub { font-size:.8rem; letter-spacing:.45em; color:rgba(255,255,255,.25);
+  text-transform:uppercase; margin-bottom:2.5rem; text-align:center; }
+
+/* ── MULTIPLIER STATUS BAR ── */
+.mult-status {
+  display:flex; gap:.8rem; flex-wrap:wrap; justify-content:center;
+  margin-bottom:2.5rem;
+  background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+  padding:1rem 1.5rem;
+  width:min(100%,700px);
+}
+.mult-item { display:flex; flex-direction:column; align-items:center; gap:.2rem; }
+.mult-label { font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:rgba(255,255,255,.3); }
+.mult-val { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:.1em; color:var(--gold); }
+.mult-val.inactive { color:rgba(255,255,255,.2); }
+.mult-divider { width:1px; background:var(--border); align-self:stretch; }
+.mult-timer { display:flex; flex-direction:column; align-items:center; gap:.2rem; margin-left:auto; }
+.mult-timer-val { font-family:'Bebas Neue',sans-serif; font-size:1.2rem; color:var(--cyan); }
+.mult-expired { color:var(--red) !important; }
+
+/* ── CASE GRID ── */
+.case-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1.5rem; width:min(100%,700px); }
+@media(max-width:500px){ .case-grid{grid-template-columns:1fr;} }
+
+.case-card {
+  background:var(--bg2); border:1px solid var(--border); border-radius:10px;
+  padding:1.8rem 1.5rem; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:1rem;
+  transition:transform .2s, border-color .25s, box-shadow .25s;
+  position:relative; overflow:hidden;
+}
+.case-card::before { content:''; position:absolute; inset:0; opacity:0; transition:opacity .25s; }
+.case-card:hover { transform:translateY(-6px); }
+.case-card.c-gold:hover  { border-color:var(--gold);  box-shadow:0 0 40px rgba(240,192,64,.2); }
+.case-card.c-blue:hover  { border-color:var(--blue);  box-shadow:0 0 40px rgba(48,128,255,.2); }
+.case-card.c-red:hover   { border-color:var(--red);   box-shadow:0 0 40px rgba(224,48,48,.2); }
+.case-card.c-purple:hover{ border-color:var(--purple);box-shadow:0 0 40px rgba(144,64,255,.2); }
+
+.case-3d { position:relative; width:130px; height:108px; }
+.c-body { width:130px;height:78px;border-radius:5px 5px 10px 10px;position:absolute;bottom:0;border:2px solid;overflow:hidden;transition:transform .2s; }
+.c-lid  { width:136px;height:32px;border-radius:4px 4px 2px 2px;position:absolute;top:0;left:-3px;border:2px solid;transform-origin:center bottom;transition:transform .5s cubic-bezier(.4,0,.2,1); }
+.c-lid::after { content:'';position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);width:18px;height:5px;border-radius:2px; }
+.c-emblem { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:1rem;background:rgba(0,0,0,.5);animation:eSpin 8s linear infinite;z-index:2; }
+@keyframes eSpin{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+.case-card:hover .c-body { transform:translateY(-4px); }
+
+.c-gold  .c-body,.c-gold  .c-lid { border-color:var(--gold);  background:linear-gradient(145deg,#2a1a05,#1a0f03); }
+.c-blue  .c-body,.c-blue  .c-lid { border-color:var(--blue);  background:linear-gradient(145deg,#05102a,#030818); }
+.c-red   .c-body,.c-red   .c-lid { border-color:var(--red);   background:linear-gradient(145deg,#2a0808,#180505); }
+.c-purple.c-body,.c-purple.c-lid { border-color:var(--purple);background:linear-gradient(145deg,#180a2a,#100518); }
+.c-gold   .c-lid::after,.c-gold  .c-emblem { background:rgba(240,192,64,.3);border-color:var(--gold);color:var(--gold); }
+.c-blue   .c-lid::after,.c-blue  .c-emblem { background:rgba(48,128,255,.3);border-color:var(--blue);color:var(--blue); }
+.c-red    .c-lid::after,.c-red   .c-emblem { background:rgba(224,48,48,.3); border-color:var(--red); color:var(--red); }
+.c-purple .c-lid::after,.c-purple.c-emblem { background:rgba(144,64,255,.3);border-color:var(--purple);color:var(--purple); }
+.c-gold   .c-lid::after { background:var(--gold); }
+.c-blue   .c-lid::after { background:var(--blue); }
+.c-red    .c-lid::after { background:var(--red);  }
+.c-purple .c-lid::after { background:var(--purple); }
+
+.case-name { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:.2em; }
+.case-desc { font-size:.78rem; color:rgba(255,255,255,.4); text-align:center; line-height:1.5; }
+.case-mult { font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:.15em;
+  padding:.2em .7em; border-radius:3px; }
+.c-gold  .case-name,.c-gold  .case-mult { color:var(--gold); }
+.c-blue  .case-name,.c-blue  .case-mult { color:var(--blue); }
+.c-red   .case-name,.c-red   .case-mult { color:var(--red); }
+.c-purple.case-name,.c-purple.case-mult { color:var(--purple); }
+
+/* spin screen */
+#s-spin { display:none; position:fixed;inset:0;background:radial-gradient(ellipse at 50% 40%,#0d0a1a 0%,var(--bg) 70%);
+  flex-direction:column;align-items:center;justify-content:center;gap:2rem;z-index:300; }
+#s-spin.active { display:flex; }
+.spin-case-title { font-family:'Bebas Neue',sans-serif;font-size:clamp(1.6rem,4vw,3rem);letter-spacing:.3em;color:rgba(255,255,255,.7); }
+
+/* stats bar */
+.stats-bar { display:flex;gap:2rem;flex-wrap:wrap;justify-content:center;margin-top:2rem;width:min(100%,700px); }
+.stat-item { text-align:center; }
+.stat-val { font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.1em;color:var(--gold); }
+.stat-label { font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.25); }
+</style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a class="nav-logo" href="lobby.html">VAULT</a>
+  <div class="nav-spacer"></div>
+  <div class="nav-user" id="navUser"></div>
+  <div class="nav-coins"><span>💰</span><span id="navCoins">0</span></div>
+  <button class="btn btn-ghost" style="font-size:.8rem;padding:.3em .9em;" onclick="doLogout()">LOGOUT</button>
+</nav>
+
+<!-- LOBBY -->
+<div id="s-lobby">
+  <div class="lobby-title">VAULT</div>
+  <div class="lobby-sub">Wähle deinen Bereich</div>
+
+  <!-- MULTIPLIER STATUS -->
+  <div class="mult-status" id="multStatus">
+    <div class="mult-item">
+      <div class="mult-label">🎮 Games</div>
+      <div class="mult-val inactive" id="mGames">×?</div>
+    </div>
+    <div class="mult-divider"></div>
+    <div class="mult-item">
+      <div class="mult-label">🎰 Gamble</div>
+      <div class="mult-val inactive" id="mGamble">×?</div>
+    </div>
+    <div class="mult-divider"></div>
+    <div class="mult-item">
+      <div class="mult-label">📦 Cases</div>
+      <div class="mult-val inactive" id="mCase">×?</div>
+    </div>
+    <div class="mult-divider"></div>
+    <div class="mult-item">
+      <div class="mult-label">🏦 Bank</div>
+      <div class="mult-val inactive" id="mBank">×?</div>
+    </div>
+    <div class="mult-divider"></div>
+    <div class="mult-timer">
+      <div class="mult-label">⏱ TIMER</div>
+      <div class="mult-timer-val" id="multTimer">--:--</div>
+    </div>
+  </div>
+
+  <!-- 4 CASES -->
+  <div class="case-grid">
+
+    <!-- 1: GAMES -->
+    <div class="case-card c-gold" onclick="openCase('games')">
+      <div class="case-3d c-gold">
+        <div class="c-lid"></div>
+        <div class="c-body"><div class="c-emblem">🎮</div></div>
+      </div>
+      <div class="case-name">GAMES</div>
+      <div class="case-desc">Spiele Arcade-Games und verdiene Coins. Multiplier gilt für alle Gewinne.</div>
+      <div class="case-mult" id="mult-games">MULT: ×?</div>
+    </div>
+
+    <!-- 2: GAMBLING -->
+    <div class="case-card c-red" onclick="openCase('gambling')">
+      <div class="case-3d c-red">
+        <div class="c-lid"></div>
+        <div class="c-body"><div class="c-emblem">🎰</div></div>
+      </div>
+      <div class="case-name">CASINO</div>
+      <div class="case-desc">Mines, Tower, Roulette, Blackjack, Chicken Road. Einsätze mit Multiplier.</div>
+      <div class="case-mult" id="mult-gambling">MULT: ×?</div>
+    </div>
+
+    <!-- 3: CASES -->
+    <div class="case-card c-purple" onclick="openCase('cases')">
+      <div class="case-3d c-purple">
+        <div class="c-lid"></div>
+        <div class="c-body"><div class="c-emblem">📦</div></div>
+      </div>
+      <div class="case-name">CASES</div>
+      <div class="case-desc">Öffne Cases für Items. Kosten abhängig vom Multiplier.</div>
+      <div class="case-mult" id="mult-cases">KOSTEN: ×?</div>
+    </div>
+
+    <!-- 4: BANK -->
+    <div class="case-card c-blue" onclick="openCase('bank')">
+      <div class="case-3d c-blue">
+        <div class="c-lid"></div>
+        <div class="c-body"><div class="c-emblem">🏦</div></div>
+      </div>
+      <div class="case-name">BANK</div>
+      <div class="case-desc">Leihe Coins, zahle mit Zinsen zurück. Zinssatz per Multiplier.</div>
+      <div class="case-mult" id="mult-bank">ZINS: ×?</div>
+    </div>
+
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-bar" id="statsBar"></div>
+</div>
+
+<!-- SPIN SCREEN -->
+<div id="s-spin">
+  <div class="spin-case-title" id="spinCaseTitle">MULTIPLIER GAMBLE</div>
+  <div style="color:rgba(255,255,255,.4);font-size:.85rem;letter-spacing:.2em;text-align:center;">
+    Spin deine Multiplier für die nächsten 10 Minuten
+  </div>
+</div>
+
+<script src="js/store.js"></script>
+<script src="js/multiplier.js"></script>
+<script>
+if (!Store.requireAuth()) {}
+
+const DEST = { games:'games.html', gambling:'gambling.html', cases:'cases.html', bank:'bank.html' };
+
+function doLogout() {
+  Store.logout();
+  window.location.href = 'index.html';
+}
+
+function openCase(type) {
+  const mults = Store.getMults();
+  // Animate lid
+  const cards = document.querySelectorAll('.case-card');
+  const idx = ['games','gambling','cases','bank'].indexOf(type);
+  const lids = document.querySelectorAll('.c-lid');
+  if (lids[idx]) lids[idx].style.transform = 'perspective(400px) rotateX(-130deg) translateY(-8px)';
+
+  const rect = cards[idx]?.getBoundingClientRect();
+  if (rect) spawnParticles(rect.left+rect.width/2, rect.top+30,
+    type==='games'?['#f0c040','#ffd700']:type==='gambling'?['#e03030','#ff8060']:type==='cases'?['#9040ff','#c080ff']:['#3080ff','#00e5ff'], 24);
+
+  setTimeout(() => {
+    if (mults) {
+      window.location.href = DEST[type];
+    } else {
+      // Need to gamble multipliers first
+      MultSystem.openMultModal((vals) => {
+        updateMultDisplay();
+        window.location.href = DEST[type];
+      });
+    }
+  }, 600);
+}
+
+function updateMultDisplay() {
+  const m = Store.getMults();
+  const inactive = 'mult-val inactive';
+  const active = 'mult-val';
+
+  const mG = document.getElementById('mGames');
+  const mGamb = document.getElementById('mGamble');
+  const mC = document.getElementById('mCase');
+  const mB = document.getElementById('mBank');
+
+  if (m) {
+    mG.className=active;    mG.textContent    = '×'+m.games;
+    mGamb.className=active; mGamb.textContent = '×'+m.gamble;
+    mC.className=active;    mC.textContent    = '×'+m.caseM;
+    mB.className=active;    mB.textContent    = '×'+m.bank;
+    document.getElementById('mult-games').textContent    = 'MULT: ×'+m.games;
+    document.getElementById('mult-gambling').textContent = 'MULT: ×'+m.gamble;
+    document.getElementById('mult-cases').textContent    = 'KOSTEN: ×'+m.caseM;
+    document.getElementById('mult-bank').textContent     = 'ZINS: ×'+m.bank;
+  } else {
+    mG.className=inactive;    mG.textContent    = '×?';
+    mGamb.className=inactive; mGamb.textContent = '×?';
+    mC.className=inactive;    mC.textContent    = '×?';
+    mB.className=inactive;    mB.textContent    = '×?';
+    document.getElementById('mult-games').textContent    = 'MULT: ×?';
+    document.getElementById('mult-gambling').textContent = 'MULT: ×?';
+    document.getElementById('mult-cases').textContent    = 'KOSTEN: ×?';
+    document.getElementById('mult-bank').textContent     = 'ZINS: ×?';
+  }
+}
+
+function updateTimer() {
+  const rem = Store.getMultRemaining();
+  const el = document.getElementById('multTimer');
+  if (rem <= 0) {
+    el.textContent = 'ABGELAUFEN';
+    el.classList.add('mult-expired');
+    updateMultDisplay();
+    return;
+  }
+  el.classList.remove('mult-expired');
+  const min = Math.floor(rem / 60000);
+  const sec = Math.floor((rem % 60000) / 1000);
+  el.textContent = `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function updateStats() {
+  const u = Store.currentUser();
+  if (!u) return;
+  const s = u.stats;
+  const bar = document.getElementById('statsBar');
+  bar.innerHTML = `
+    <div class="stat-item"><div class="stat-val">${s.gamesPlayed||0}</div><div class="stat-label">Spiele gespielt</div></div>
+    <div class="stat-item"><div class="stat-val">${Store.fmt(s.totalWon||0)}</div><div class="stat-label">Gewonnen</div></div>
+    <div class="stat-item"><div class="stat-val">${Store.fmt(s.totalLost||0)}</div><div class="stat-label">Verloren</div></div>
+    <div class="stat-item"><div class="stat-val">${s.casesOpened||0}</div><div class="stat-label">Cases geöffnet</div></div>
+  `;
+}
+
+// Init
+document.getElementById('navUser').textContent = Store.currentUsername() || '';
+Store.updateNavCoins();
+updateMultDisplay();
+updateStats();
+setInterval(() => { updateTimer(); Store.updateNavCoins(); }, 1000);
+updateTimer();
+</script>
+</body>
+</html>

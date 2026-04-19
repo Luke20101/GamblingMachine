@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>VAULT — Casino</title>
+<link rel="stylesheet" href="css/global.css"/>
+<style>
+.page{padding-top:70px;}
+.page-header{padding:2rem 1.5rem 1rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;}
+.mult-info{display:flex;align-items:center;gap:.6rem;background:rgba(224,48,48,.08);border:1px solid rgba(224,48,48,.2);padding:.4em 1em;border-radius:4px;}
+.mult-info span{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--red);}
+.g-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1.2rem;padding:0 1.5rem 3rem;}
+.g-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;cursor:pointer;
+  transition:transform .2s,border-color .2s,box-shadow .2s;animation:gcIn .4s ease both;}
+@keyframes gcIn{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+.g-card:hover{transform:translateY(-5px);border-color:rgba(255,255,255,.18);}
+.g-card-top{height:120px;display:flex;align-items:center;justify-content:center;font-size:4rem;position:relative;overflow:hidden;}
+.g-card-body{padding:1rem 1.2rem 1.2rem;}
+.g-card-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.15em;margin-bottom:.3rem;}
+.g-card-desc{font-size:.78rem;color:rgba(255,255,255,.4);line-height:1.5;}
+
+/* overlay */
+#gameOverlay{display:none;position:fixed;inset:54px 0 0 0;z-index:200;flex-direction:column;background:var(--bg);}
+#gameOverlay.active{display:flex;}
+.game-bar{height:48px;background:rgba(0,0,0,.9);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 1rem;gap:1rem;flex-shrink:0;}
+.game-bar-title{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.2em;color:var(--red);}
+#gameContent{flex:1;overflow-y:auto;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem;}
+</style>
+</head>
+<body>
+<div id="toast-container"></div>
+<nav class="navbar">
+  <a class="nav-logo" href="lobby.html">VAULT</a>
+  <a class="nav-back" href="lobby.html">← Lobby</a>
+  <div class="nav-spacer"></div>
+  <div class="nav-coins"><span>💰</span><span id="navCoins">0</span></div>
+</nav>
+<div class="page">
+  <div class="page-header">
+    <div class="section-title">CASINO</div>
+    <div class="mult-info">🎰 Mult: <span id="multVal">×1</span></div>
+  </div>
+  <div class="g-grid" id="gGrid"></div>
+</div>
+
+<!-- GAME OVERLAY -->
+<div id="gameOverlay">
+  <div class="game-bar">
+    <button class="btn btn-ghost" style="font-size:.85rem;padding:.3em 1em;" id="btnBack">← ZURÜCK</button>
+    <div class="game-bar-title" id="gameTitle">CASINO</div>
+    <div class="nav-spacer"></div>
+    <div class="nav-coins"><span>💰</span><span id="gameCoins">0</span></div>
+  </div>
+  <div id="gameContent"></div>
+</div>
+
+<script src="js/store.js"></script>
+<script src="js/gambling/mines.js"></script>
+<script src="js/gambling/tower.js"></script>
+<script src="js/gambling/roulette.js"></script>
+<script src="js/gambling/blackjack.js"></script>
+<script src="js/gambling/chickenroad.js"></script>
+<script>
+if(!Store.requireAuth()){}
+
+const mult=Store.getGambleMult();
+document.getElementById('multVal').textContent='×'+mult;
+
+const GAMES=[
+  {id:'mines',      icon:'💣',title:'MINES',       desc:'Wähle Felder — vermeide die Bomben. Je mehr Bomben, desto höher der Gewinn.',color:'#e03030'},
+  {id:'tower',      icon:'🏰',title:'TOWER',        desc:'Klettere den Turm hoch. Jede Etage erhöht den Multiplikator.',color:'#f0c040'},
+  {id:'roulette',   icon:'🎡',title:'ROULETTE',     desc:'Klassisches Casino-Roulette. Setze auf Zahlen, Farben oder Gruppen.',color:'#30e080'},
+  {id:'blackjack',  icon:'🃏',title:'BLACKJACK',    desc:'Komm so nah wie möglich an 21 — ohne drüber zu gehen.',color:'#3080ff'},
+  {id:'chickenroad',icon:'🐔',title:'CHICKEN ROAD', desc:'Springe über die Öfen. Wie weit traust du dich?',color:'#ff8020'},
+];
+
+const grid=document.getElementById('gGrid');
+GAMES.forEach((g,i)=>{
+  const card=document.createElement('div');
+  card.className='g-card';
+  card.style.animationDelay=(i*.08)+'s';
+  card.innerHTML=`
+    <div class="g-card-top" style="background:linear-gradient(135deg,${g.color}18,transparent);">
+      <div style="font-size:4rem">${g.icon}</div>
+    </div>
+    <div class="g-card-body">
+      <div class="g-card-title" style="color:${g.color}">${g.title}</div>
+      <div class="g-card-desc">${g.desc}</div>
+    </div>`;
+  card.style.borderTop=`3px solid ${g.color}`;
+  card.addEventListener('click',()=>launchGame(g));
+  grid.appendChild(card);
+});
+
+let activeGame=null;
+function launchGame(g){
+  document.getElementById('gameOverlay').classList.add('active');
+  document.getElementById('gameTitle').textContent=g.title;
+  document.getElementById('gameContent').innerHTML='';
+  document.body.style.overflow='hidden';
+  const ENGINES={mines:MinesGame,tower:TowerGame,roulette:RouletteGame,blackjack:BlackjackGame,chickenroad:ChickenRoadGame};
+  if(activeGame&&activeGame.destroy)activeGame.destroy();
+  const G=ENGINES[g.id];
+  if(G){activeGame=new G(document.getElementById('gameContent'),{mult,onWin,onLose});}
+}
+function onWin(amount){
+  const actual=Math.round(amount*mult);
+  Store.addCoins(actual);Store.addStat('totalWon',actual);
+  Store.updateNavCoins();
+  document.getElementById('gameCoins').textContent=Store.fmt(Store.getCoins());
+  toast(`+${Store.fmt(actual)} Coins gewonnen! (×${mult})`, 'success');
+}
+function onLose(amount){
+  Store.addCoins(-amount);Store.addStat('totalLost',amount);
+  Store.updateNavCoins();
+  document.getElementById('gameCoins').textContent=Store.fmt(Store.getCoins());
+}
+document.getElementById('btnBack').addEventListener('click',()=>{
+  if(activeGame&&activeGame.destroy)activeGame.destroy();
+  document.getElementById('gameOverlay').classList.remove('active');
+  document.body.style.overflow='';
+});
+Store.updateNavCoins();
+document.getElementById('gameCoins').textContent=Store.fmt(Store.getCoins());
+</script>
+</body>
+</html>

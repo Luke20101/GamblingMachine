@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>VAULT — Games</title>
+<link rel="stylesheet" href="css/global.css"/>
+<style>
+.page { padding-top:70px; }
+.page-header { padding:2rem 1.5rem 1rem; display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; }
+.mult-info { display:flex; align-items:center; gap:.6rem; background:rgba(240,192,64,.08); border:1px solid rgba(240,192,64,.2); padding:.4em 1em; border-radius:4px; }
+.mult-info span { font-family:'Bebas Neue',sans-serif; font-size:1.1rem; color:var(--gold); }
+
+.game-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1rem; padding:0 1.5rem 3rem; }
+.gc { position:relative; border:1px solid var(--border); border-radius:6px; overflow:hidden; cursor:pointer;
+  aspect-ratio:3/2; background:var(--bg2); transition:transform .2s,border-color .2s; animation:gcIn .45s ease both; }
+@keyframes gcIn{from{opacity:0;transform:translateY(16px) scale(.96);}to{opacity:1;transform:none;}}
+.gc:hover { transform:translateY(-5px) scale(1.02); border-color:rgba(255,255,255,.18); }
+.gc-bg { position:absolute;inset:0;font-size:5rem;display:flex;align-items:center;justify-content:center;opacity:.13;transition:opacity .25s,transform .4s; }
+.gc:hover .gc-bg{opacity:.22;transform:scale(1.1);}
+.gc-content{position:absolute;inset:0;padding:1rem 1.2rem;display:flex;flex-direction:column;justify-content:flex-end;background:linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 60%);}
+.gc-genre{font-size:.6rem;letter-spacing:.3em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:.15rem;}
+.gc-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.1em;line-height:1;}
+.gc-reward{font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.3rem;}
+.gc-play{position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.3em;}
+.gc:hover .gc-play{opacity:1;}
+.gc-rl{position:absolute;bottom:0;left:0;right:0;height:3px;}
+
+/* game overlay */
+#gameOverlay{display:none;position:fixed;inset:54px 0 0 0;z-index:200;flex-direction:column;background:#000;}
+#gameOverlay.active{display:flex;}
+.game-bar{height:48px;background:rgba(0,0,0,.9);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 1rem;gap:1rem;flex-shrink:0;}
+.game-bar-title{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.2em;color:var(--gold);}
+.game-bar-score{margin-left:auto;font-size:.85rem;letter-spacing:.1em;color:rgba(255,255,255,.5);}
+#gameCanvas{display:block;flex:1;width:100%;}
+</style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<nav class="navbar">
+  <a class="nav-logo" href="lobby.html">VAULT</a>
+  <a class="nav-back" href="lobby.html">← Lobby</a>
+  <div class="nav-spacer"></div>
+  <div class="nav-coins"><span>💰</span><span id="navCoins">0</span></div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div class="section-title">ARCADE GAMES</div>
+    <div class="mult-info">🎮 Mult: <span id="multVal">×1</span></div>
+    <div style="font-size:.8rem;color:rgba(255,255,255,.3);letter-spacing:.15em;">Spiele um Coins zu verdienen!</div>
+  </div>
+  <div class="game-grid" id="gameGrid"></div>
+</div>
+
+<!-- GAME OVERLAY -->
+<div id="gameOverlay">
+  <div class="game-bar">
+    <button class="btn btn-ghost" style="font-size:.85rem;padding:.3em 1em;" id="btnBack">← ZURÜCK</button>
+    <div class="game-bar-title" id="gameTitle">GAME</div>
+    <div class="game-bar-score" id="gameScore"></div>
+    <div class="nav-coins" style="margin-left:0;"><span>💰</span><span id="gameCoins">0</span></div>
+  </div>
+  <canvas id="gameCanvas"></canvas>
+</div>
+
+<script src="js/store.js"></script>
+<script src="js/games/snake.js"></script>
+<script src="js/games/pong.js"></script>
+<script src="js/games/dodge.js"></script>
+<script src="js/games/runner.js"></script>
+<script src="js/games/shooter.js"></script>
+<script src="js/games/breakout.js"></script>
+<script src="js/games/match3.js"></script>
+<script src="js/games/asteroids.js"></script>
+<script>
+if (!Store.requireAuth()) {}
+
+const GAMES_DATA = [
+  {id:'snake',    icon:'🐍',title:'SNAKE',     genre:'Classic Arcade',  color:'#30e080',reward:'5 Coins / 10 Punkte'},
+  {id:'pong',     icon:'🏓',title:'PONG',      genre:'Retro Sport',     color:'#00e5ff',reward:'2 Coins / Punkt'},
+  {id:'dodge',    icon:'💥',title:'DODGE',     genre:'Survival Arcade', color:'#e03030',reward:'1 Coin / Sek'},
+  {id:'runner',   icon:'🏃',title:'RUNNER',    genre:'Endless Runner',  color:'#9040ff',reward:'1 Coin / Punkt'},
+  {id:'shooter',  icon:'🚀',title:'BLASTER',   genre:'Space Shooter',   color:'#3080ff',reward:'2 Coins / Abschuss'},
+  {id:'breakout', icon:'🧱',title:'BREAKOUT',  genre:'Block Breaker',   color:'#f0c040',reward:'3 Coins / Block'},
+  {id:'match3',   icon:'💎',title:'GEM CRUSH', genre:'Puzzle',          color:'#ff8020',reward:'2 Coins / Match'},
+  {id:'asteroids',icon:'☄️', title:'ASTEROIDS',genre:'Space Action',    color:'#9040ff',reward:'5 Coins / Asteroid'},
+];
+
+let activeGame = null;
+const mult = Store.getGameMult();
+document.getElementById('multVal').textContent = '×'+mult;
+
+// Build grid
+const grid = document.getElementById('gameGrid');
+GAMES_DATA.forEach((g,i) => {
+  const card = document.createElement('div');
+  card.className = 'gc';
+  card.style.animationDelay = (i*.07)+'s';
+  card.innerHTML = `
+    <div class="gc-bg">${g.icon}</div>
+    <div style="position:absolute;inset:0;background:linear-gradient(135deg,${g.color}20 0%,transparent 60%)"></div>
+    <div class="gc-content">
+      <div class="gc-genre">${g.genre}</div>
+      <div class="gc-title" style="color:${g.color}">${g.title}</div>
+      <div class="gc-reward">💰 ${g.reward} × ${mult}</div>
+    </div>
+    <div class="gc-play">▶ SPIELEN</div>
+    <div class="gc-rl" style="background:${g.color}"></div>`;
+  card.addEventListener('click', () => launchGame(g));
+  grid.appendChild(card);
+});
+
+function launchGame(g) {
+  const overlay = document.getElementById('gameOverlay');
+  overlay.classList.add('active');
+  document.getElementById('gameTitle').textContent = g.title;
+  document.getElementById('gameScore').textContent = '';
+  document.body.style.overflow = 'hidden';
+
+  const canvas = document.getElementById('gameCanvas');
+  canvas.width  = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+
+  const ENGINES = {
+    snake: SnakeGame, pong: PongGame, dodge: DodgeGame, runner: RunnerGame,
+    shooter: ShooterGame, breakout: BreakoutGame, match3: Match3Game, asteroids: AsteroidsGame
+  };
+  if (activeGame) { activeGame.destroy(); activeGame = null; }
+  const G = ENGINES[g.id];
+  if (G) activeGame = new G(canvas, onScoreUpdate, onGameEnd);
+
+  Store.addStat('gamesPlayed');
+}
+
+function onScoreUpdate(score) {
+  document.getElementById('gameScore').textContent = 'SCORE: '+score;
+  Store.updateNavCoins();
+  document.getElementById('gameCoins').textContent = Store.fmt(Store.getCoins());
+}
+
+function onGameEnd(finalScore, coinsEarned) {
+  const mult = Store.getGameMult();
+  const earned = Math.round(coinsEarned * mult);
+  Store.addCoins(earned);
+  Store.addStat('totalWon', earned);
+  Store.updateNavCoins();
+  document.getElementById('gameCoins').textContent = Store.fmt(Store.getCoins());
+  if (earned > 0) toast(`+${Store.fmt(earned)} Coins verdient! (×${mult} Mult)`, 'success');
+}
+
+document.getElementById('btnBack').addEventListener('click', () => {
+  if (activeGame) { activeGame.destroy(); activeGame = null; }
+  document.getElementById('gameOverlay').classList.remove('active');
+  document.body.style.overflow = '';
+});
+
+Store.updateNavCoins();
+document.getElementById('gameCoins').textContent = Store.fmt(Store.getCoins());
+</script>
+</body>
+</html>

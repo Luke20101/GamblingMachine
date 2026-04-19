@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>VAULT — Login</title>
+<link rel="stylesheet" href="css/global.css"/>
+<style>
+body { display:flex; align-items:center; justify-content:center; min-height:100vh; overflow:hidden;
+  background: radial-gradient(ellipse at 50% 50%, #1a0a2a 0%, var(--bg) 70%); }
+
+.auth-wrap { width: min(92vw, 420px); animation: fadeUp .5s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+
+.auth-logo { font-family:'Bebas Neue',sans-serif; font-size:clamp(3.5rem,10vw,6rem); letter-spacing:.3em;
+  color:var(--gold); text-align:center;
+  text-shadow:0 0 50px rgba(240,192,64,.7),0 0 100px rgba(240,192,64,.3);
+  animation:logoPulse 3s ease-in-out infinite; margin-bottom:.1em; }
+@keyframes logoPulse{0%,100%{text-shadow:0 0 50px rgba(240,192,64,.7),0 0 100px rgba(240,192,64,.3);}50%{text-shadow:0 0 80px rgba(240,192,64,1),0 0 160px rgba(240,192,64,.5);}}
+.auth-sub { text-align:center; font-size:.8rem; letter-spacing:.5em; color:rgba(255,255,255,.25); text-transform:uppercase; margin-bottom:2.5rem; }
+
+.auth-tabs { display:flex; margin-bottom:1.5rem; border-bottom:1px solid var(--border); }
+.auth-tab { flex:1; font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:.2em;
+  padding:.75em; background:none; border:none; color:rgba(255,255,255,.3); cursor:pointer;
+  border-bottom:2px solid transparent; transition:color .2s, border-color .2s; }
+.auth-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+
+.auth-form { display:flex; flex-direction:column; gap:1rem; }
+.auth-form.hidden { display:none; }
+.field label { display:block; font-size:.75rem; letter-spacing:.2em; text-transform:uppercase;
+  color:rgba(255,255,255,.4); margin-bottom:.4rem; }
+.field input { width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:4px;
+  padding:.75rem 1rem; color:var(--text); font-family:'Rajdhani',sans-serif; font-size:1rem;
+  transition:border-color .2s; outline:none; }
+.field input:focus { border-color:var(--gold); }
+.auth-error { color:var(--red); font-size:.85rem; min-height:1.2em; }
+
+/* ── GAMBLE MODAL ── */
+#gamble-modal { position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;z-index:500;
+  opacity:0;pointer-events:none;transition:opacity .4s; }
+#gamble-modal.open { opacity:1;pointer-events:all; }
+.gamble-box { background:var(--bg2);border:1px solid rgba(255,255,255,.1);border-radius:12px;
+  padding:2.5rem;width:min(92vw,520px);text-align:center; }
+.gamble-title { font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:.2em;color:var(--gold);margin-bottom:.5rem; }
+.gamble-sub { color:rgba(255,255,255,.4);font-size:.9rem;margin-bottom:2rem;line-height:1.6; }
+.amount-display { font-family:'Bebas Neue',sans-serif;font-size:3.5rem;letter-spacing:.1em;
+  color:var(--gold);text-shadow:0 0 40px rgba(240,192,64,.6);min-height:1.2em;
+  animation:numFlicker .08s steps(1) infinite; }
+@keyframes numFlicker { 0%{opacity:1;}50%{opacity:.85;} }
+.amount-display.done { animation:none; }
+.odds-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:1.5rem 0;font-size:.75rem; }
+.odd-item { background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:.5rem;
+  display:flex;flex-direction:column;gap:.2rem; }
+.odd-amount { font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.1em; }
+.odd-chance { color:rgba(255,255,255,.3);font-size:.65rem;letter-spacing:.1em; }
+.odd-amount.t-gold{color:var(--gold);} .odd-amount.t-red{color:var(--red);}
+.odd-amount.t-green{color:var(--green);} .odd-amount.t-blue{color:var(--blue);}
+.odd-amount.t-purple{color:var(--purple);}
+</style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="auth-wrap">
+  <div class="auth-logo">VAULT</div>
+  <div class="auth-sub">Game Hub · Casino · Cases</div>
+
+  <div class="card">
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">LOGIN</button>
+      <button class="auth-tab" onclick="switchTab('register')">REGISTRIEREN</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="auth-form" id="form-login">
+      <div class="field"><label>Benutzername</label><input type="text" id="l-user" placeholder="dein_name" autocomplete="username"/></div>
+      <div class="field"><label>Passwort</label><input type="password" id="l-pass" placeholder="••••••" autocomplete="current-password"/></div>
+      <div class="auth-error" id="l-err"></div>
+      <button class="btn btn-gold" onclick="doLogin()">EINLOGGEN</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div class="auth-form hidden" id="form-register">
+      <div class="field"><label>Benutzername</label><input type="text" id="r-user" placeholder="cool_name" autocomplete="username"/></div>
+      <div class="field"><label>Passwort</label><input type="password" id="r-pass" placeholder="••••••" autocomplete="new-password"/></div>
+      <div class="field"><label>Passwort wiederholen</label><input type="password" id="r-pass2" placeholder="••••••" autocomplete="new-password"/></div>
+      <div class="auth-error" id="r-err"></div>
+      <button class="btn btn-gold" onclick="doRegister()">KONTO ERSTELLEN</button>
+    </div>
+  </div>
+</div>
+
+<!-- STARTUP GAMBLE MODAL -->
+<div id="gamble-modal">
+  <div class="gamble-box">
+    <div class="gamble-title">🎲 STARTKAPITAL GAMBLE</div>
+    <div class="gamble-sub">
+      Willkommen, <strong id="welcomeName" style="color:var(--gold)"></strong>!<br>
+      Spin das Rad um deinen Startkontostand zu bestimmen!
+    </div>
+
+    <div class="amount-display" id="amountDisplay">???</div>
+
+    <div class="odds-grid">
+      <div class="odd-item"><div class="odd-amount t-red">100</div><div class="odd-chance">35%</div></div>
+      <div class="odd-item"><div class="odd-amount t-red">250</div><div class="odd-chance">25%</div></div>
+      <div class="odd-item"><div class="odd-amount">500</div><div class="odd-chance">15%</div></div>
+      <div class="odd-item"><div class="odd-amount t-blue">1.000</div><div class="odd-chance">10%</div></div>
+      <div class="odd-item"><div class="odd-amount t-green">5.000</div><div class="odd-chance">7%</div></div>
+      <div class="odd-item"><div class="odd-amount t-gold">10.000</div><div class="odd-chance">5%</div></div>
+      <div class="odd-item"><div class="odd-amount t-purple">50.000</div><div class="odd-chance">2%</div></div>
+      <div class="odd-item"><div class="odd-amount t-purple">100.000</div><div class="odd-chance">0.9%</div></div>
+      <div class="odd-item"><div class="odd-amount t-gold" style="font-size:.85rem">1.000.000</div><div class="odd-chance">0.0001%</div></div>
+    </div>
+
+    <div class="reel-wrap" style="margin:0 auto 1.5rem;" id="gambleReel">
+      <div class="reel-track" id="gambleTrack"></div>
+    </div>
+
+    <button class="btn btn-gold" id="gambleBtn" style="width:100%;font-size:1.3rem;" onclick="doGamble()">
+      🎰 SPIN!
+    </button>
+    <div id="gambleResult" style="margin-top:1rem;display:none;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--green)" id="gambleResultText"></div>
+      <button class="btn btn-outline" style="width:100%;margin-top:1rem;font-size:1.1rem;" onclick="finishGamble()">ZUR LOBBY →</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/store.js"></script>
+<script>
+// Redirect wenn schon eingeloggt
+if (Store.getSession()) window.location.href = 'lobby.html';
+
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+  document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
+}
+
+function doLogin() {
+  const user = document.getElementById('l-user').value.trim();
+  const pass = document.getElementById('l-pass').value;
+  const err  = document.getElementById('l-err');
+  err.textContent = '';
+  const res = Store.login(user, pass);
+  if (!res.ok) { err.textContent = res.msg; return; }
+  window.location.href = 'lobby.html';
+}
+
+function doRegister() {
+  const user  = document.getElementById('r-user').value.trim();
+  const pass  = document.getElementById('r-pass').value;
+  const pass2 = document.getElementById('r-pass2').value;
+  const err   = document.getElementById('r-err');
+  err.textContent = '';
+  if (pass !== pass2) { err.textContent = 'Passwörter stimmen nicht überein.'; return; }
+  const res = Store.register(user, pass);
+  if (!res.ok) { err.textContent = res.msg; return; }
+  // Show gamble modal
+  document.getElementById('welcomeName').textContent = user;
+  document.getElementById('gamble-modal').classList.add('open');
+  buildGambleReel();
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const loginHidden = document.getElementById('form-login').classList.contains('hidden');
+  if (loginHidden) doRegister(); else doLogin();
+});
+
+// ── STARTUP GAMBLE ──
+const AMOUNTS = [
+  {v:100,     r:'red',    label:'100'},
+  {v:250,     r:'red',    label:'250'},
+  {v:500,     r:'blue',   label:'500'},
+  {v:1000,    r:'blue',   label:'1K'},
+  {v:5000,    r:'green',  label:'5K'},
+  {v:10000,   r:'gold',   label:'10K'},
+  {v:50000,   r:'purple', label:'50K'},
+  {v:100000,  r:'purple', label:'100K'},
+  {v:1000000, r:'gold',   label:'1M'},
+];
+const WEIGHTS = [35,25,15,10,7,5,2,0.9,0.0001];
+
+function weightedPick() {
+  const total = WEIGHTS.reduce((a,b)=>a+b,0);
+  let r = Math.random() * total;
+  for (let i=0;i<AMOUNTS.length;i++) { r-=WEIGHTS[i]; if(r<=0) return AMOUNTS[i]; }
+  return AMOUNTS[0];
+}
+
+function buildGambleReel() {
+  const track = document.getElementById('gambleTrack');
+  track.innerHTML='';
+  const icons = ['💰','💎','🏆','⭐','🎲','💸','🔥','👑','🌈'];
+  for (let i=0;i<55;i++) {
+    const a=AMOUNTS[Math.floor(Math.random()*AMOUNTS.length)];
+    const el=document.createElement('div');
+    el.className=`reel-item r-${a.r}`;
+    el.innerHTML=`${icons[Math.floor(Math.random()*icons.length)]}<span>${a.label}</span>`;
+    track.appendChild(el);
+  }
+}
+
+let gambleDone=false;
+function doGamble() {
+  if (gambleDone) return;
+  gambleDone=true;
+  document.getElementById('gambleBtn').disabled=true;
+
+  const winner = weightedPick();
+  const track = document.getElementById('gambleTrack');
+  const reel  = document.getElementById('gambleReel');
+
+  // Place winner at pos 44
+  const items = track.querySelectorAll('.reel-item');
+  if(items[44]) {
+    items[44].className=`reel-item r-${winner.r}`;
+    items[44].innerHTML=`💰<span>${winner.label}</span>`;
+  }
+
+  const ITEM_W=100;
+  const center=reel.offsetWidth/2-ITEM_W/2;
+  const targetX=-(44*ITEM_W-center);
+  track.style.transition='none';
+  track.style.transform='translateX(0)';
+  track.getBoundingClientRect();
+  track.style.transition='transform 4s cubic-bezier(0.04,.5,.12,1)';
+  track.style.transform=`translateX(${targetX}px)`;
+
+  // Flicker amount
+  const display=document.getElementById('amountDisplay');
+  let tick=0;
+  const flicker=setInterval(()=>{
+    const rnd=AMOUNTS[Math.floor(Math.random()*AMOUNTS.length)];
+    display.textContent=rnd.v.toLocaleString('de-DE')+' COINS';
+    if(tick++>60) clearInterval(flicker);
+  },60);
+
+  setTimeout(()=>{
+    clearInterval(flicker);
+    display.textContent=winner.v.toLocaleString('de-DE')+' COINS';
+    display.classList.add('done');
+
+    const flash=document.createElement('div');flash.className='win-flash';reel.appendChild(flash);
+    setTimeout(()=>flash.remove(),1300);
+
+    Store.setCoins(winner.v);
+    Store.setFirstLoginDone();
+
+    spawnParticles(window.innerWidth/2, window.innerHeight/2,
+      winner.r==='gold'?['#f0c040','#ffd700']:winner.r==='purple'?['#9040ff','#c080ff']:['#30e080','#00e5ff'], 40);
+
+    document.getElementById('gambleResult').style.display='block';
+    document.getElementById('gambleResultText').textContent=`🎉 ${winner.v.toLocaleString('de-DE')} COINS erhalten!`;
+  }, 4200);
+}
+
+function finishGamble() {
+  window.location.href='lobby.html';
+}
+</script>
+</body>
+</html>

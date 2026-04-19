@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>VAULT — Bank</title>
+<link rel="stylesheet" href="css/global.css"/>
+<style>
+.page{padding-top:70px;display:flex;justify-content:center;align-items:flex-start;}
+.bank-wrap{width:min(96vw,600px);padding:2rem 1.5rem 3rem;}
+.bank-header{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;}
+.mult-pill{display:flex;align-items:center;gap:.5rem;background:rgba(48,128,255,.08);border:1px solid rgba(48,128,255,.25);padding:.4em 1em;border-radius:4px;font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--blue);}
+
+.bank-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:1.8rem;margin-bottom:1.2rem;}
+.bank-card-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.2em;color:var(--blue);margin-bottom:1rem;display:flex;align-items:center;gap:.6rem;}
+
+/* LOAN STATUS */
+.loan-status{padding:1.2rem;border-radius:8px;margin-bottom:1rem;}
+.loan-status.active-loan{background:rgba(224,48,48,.08);border:1px solid rgba(224,48,48,.25);}
+.loan-status.no-loan{background:rgba(48,224,128,.06);border:1px solid rgba(48,224,128,.15);}
+.loan-amount{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:.1em;}
+.loan-amount.danger{color:var(--red);}
+.loan-amount.safe{color:var(--green);}
+.loan-timer{font-size:.85rem;margin-top:.4rem;}
+.loan-timer.overdue{color:var(--red);}
+.loan-timer.ok{color:rgba(255,255,255,.5);}
+
+/* BORROW FORM */
+.borrow-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin:1rem 0;}
+.amount-btn{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:.8rem;cursor:pointer;
+  text-align:center;transition:border-color .2s,background .2s;color:var(--text);}
+.amount-btn:hover,.amount-btn.selected{border-color:var(--blue);background:rgba(48,128,255,.1);color:var(--blue);}
+.amount-btn .val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.1em;}
+.amount-btn .rep{font-size:.68rem;color:rgba(255,255,255,.35);margin-top:.2rem;}
+
+.rate-info{background:var(--bg3);border-radius:6px;padding:1rem;margin:.8rem 0;font-size:.85rem;}
+.rate-row{display:flex;justify-content:space-between;padding:.25rem 0;border-bottom:1px solid var(--border);}
+.rate-row:last-child{border-bottom:none;font-weight:700;color:var(--gold);}
+
+/* HISTORY */
+.hist-item{display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;border-bottom:1px solid var(--border);font-size:.85rem;}
+.hist-item:last-child{border-bottom:none;}
+</style>
+</head>
+<body>
+<div id="toast-container"></div>
+<nav class="navbar">
+  <a class="nav-logo" href="lobby.html">VAULT</a>
+  <a class="nav-back" href="lobby.html">← Lobby</a>
+  <div class="nav-spacer"></div>
+  <div class="nav-coins"><span>💰</span><span id="navCoins">0</span></div>
+</nav>
+
+<div class="page">
+  <div class="bank-wrap">
+    <div class="bank-header">
+      <div class="section-title">VAULT BANK</div>
+      <div class="mult-pill">🏦 Zinsmult: ×<span id="multVal">1</span></div>
+    </div>
+
+    <!-- LOAN STATUS -->
+    <div class="bank-card">
+      <div class="bank-card-title">📋 KREDITSTATUS</div>
+      <div id="loanStatus"></div>
+      <div id="repaySection" style="display:none;margin-top:1rem;">
+        <button class="btn btn-red" id="repayBtn" style="width:100%;font-size:1.1rem;">💸 KREDIT ZURÜCKZAHLEN</button>
+      </div>
+    </div>
+
+    <!-- BORROW -->
+    <div class="bank-card" id="borrowCard">
+      <div class="bank-card-title">💳 KREDIT AUFNEHMEN</div>
+      <p style="font-size:.82rem;color:rgba(255,255,255,.4);margin-bottom:1rem;line-height:1.6;">
+        Wähle einen Betrag. Du hast <strong style="color:var(--gold)">10 Minuten</strong> zur Rückzahlung.
+        Bei Verspätung kommt eine <strong style="color:var(--red)">50% Strafgebühr</strong>.
+      </p>
+
+      <div class="borrow-grid" id="amountGrid"></div>
+
+      <div class="rate-info" id="rateInfo">
+        <div style="font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:.5rem;">Kreditübersicht</div>
+        <div class="rate-row"><span>Betrag</span><span id="ri-amount">—</span></div>
+        <div class="rate-row"><span>Zinssatz</span><span id="ri-rate">—</span></div>
+        <div class="rate-row"><span>Zinsen</span><span id="ri-interest">—</span></div>
+        <div class="rate-row"><span>Rückzahlung</span><span id="ri-total">—</span></div>
+      </div>
+
+      <button class="btn btn-blue" id="borrowBtn" style="width:100%;font-size:1.1rem;background:var(--blue);color:#fff;" disabled>
+        KREDIT AUFNEHMEN
+      </button>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="bank-card">
+      <div class="bank-card-title">📜 KREDITHISTORIE</div>
+      <div id="histList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/store.js"></script>
+<script>
+if(!Store.requireAuth()){}
+
+const bankMult  = Store.getBankMult();
+const BASE_RATE = 0.10; // 10% base
+const rate      = Math.round(BASE_RATE * bankMult * 100) / 100;
+document.getElementById('multVal').textContent = bankMult;
+
+const AMOUNTS = [500,1000,2500,5000,10000,25000];
+let selectedAmount = null;
+
+// Build amount grid
+const grid = document.getElementById('amountGrid');
+AMOUNTS.forEach(a => {
+  const total = Math.round(a * (1 + rate));
+  const btn = document.createElement('div');
+  btn.className = 'amount-btn';
+  btn.innerHTML = `<div class="val">${Store.fmt(a)}</div><div class="rep">Rückz: ${Store.fmt(total)}</div>`;
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedAmount = a;
+    updateRateInfo(a);
+    document.getElementById('borrowBtn').disabled = false;
+  });
+  grid.appendChild(btn);
+});
+
+function updateRateInfo(amount) {
+  const interest = Math.round(amount * rate);
+  const total    = amount + interest;
+  document.getElementById('ri-amount').textContent   = Store.fmt(amount) + ' 💰';
+  document.getElementById('ri-rate').textContent     = (rate*100).toFixed(0) + '% (Basis 10% × '+bankMult+')';
+  document.getElementById('ri-interest').textContent = Store.fmt(interest) + ' 💰';
+  document.getElementById('ri-total').textContent    = Store.fmt(total) + ' 💰';
+}
+
+document.getElementById('borrowBtn').addEventListener('click', () => {
+  if (!selectedAmount) return;
+  const res = Store.takeLoan(selectedAmount, rate);
+  if (!res.ok) { toast(res.msg, 'error'); return; }
+  toast(`💳 Kredit aufgenommen! ${Store.fmt(selectedAmount)} Coins erhalten. Rückzahlung: ${Store.fmt(res.total)} Coins`, 'success');
+  Store.updateNavCoins();
+  saveHistory(selectedAmount, res.total);
+  renderLoanStatus();
+});
+
+document.getElementById('repayBtn').addEventListener('click', () => {
+  const res = Store.repayLoan();
+  if (!res.ok) { toast(res.msg, 'error'); return; }
+  toast('✅ Kredit zurückgezahlt!', 'success');
+  Store.updateNavCoins();
+  renderLoanStatus();
+});
+
+function renderLoanStatus() {
+  const bank = Store.getBank();
+  const statusEl = document.getElementById('loanStatus');
+  const repayEl  = document.getElementById('repaySection');
+  const borrowCard = document.getElementById('borrowCard');
+
+  if (bank.loan > 0) {
+    const remaining = Math.max(0, bank.loanDue - Date.now());
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    const overdue = remaining <= 0;
+    statusEl.innerHTML = `
+      <div class="loan-status active-loan">
+        <div style="font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:.3rem;">OFFENER KREDIT</div>
+        <div class="loan-amount danger">${Store.fmt(bank.loan)} COINS</div>
+        <div class="loan-timer ${overdue?'overdue':'ok'}" id="loanTimerEl">
+          ${overdue ? '⚠️ ÜBERFÄLLIG! Strafzinsen laufen!' : `⏱ Fällig in: ${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`}
+        </div>
+      </div>`;
+    repayEl.style.display = 'block';
+    borrowCard.style.opacity = '.4';
+    borrowCard.style.pointerEvents = 'none';
+  } else {
+    statusEl.innerHTML = `
+      <div class="loan-status no-loan">
+        <div class="loan-amount safe">KEIN AKTIVER KREDIT</div>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.4);margin-top:.3rem;">Du kannst jetzt einen Kredit aufnehmen.</div>
+      </div>`;
+    repayEl.style.display = 'none';
+    borrowCard.style.opacity = '';
+    borrowCard.style.pointerEvents = '';
+  }
+}
+
+function saveHistory(amount, total) {
+  const u = Store.currentUser();
+  if (!u) return;
+  if (!u.loanHistory) u.loanHistory = [];
+  u.loanHistory.unshift({ amount, total, date: Date.now() });
+  if (u.loanHistory.length > 10) u.loanHistory.pop();
+  const users = JSON.parse(localStorage.getItem('vault_users') || '{}');
+  users[u.username] = u;
+  localStorage.setItem('vault_users', JSON.stringify(users));
+}
+
+function renderHistory() {
+  const u = Store.currentUser();
+  const hist = (u && u.loanHistory) || [];
+  const el = document.getElementById('histList');
+  if (!hist.length) { el.innerHTML = '<div style="color:rgba(255,255,255,.25);font-size:.82rem;">Noch keine Kredite aufgenommen.</div>'; return; }
+  el.innerHTML = hist.map(h => `
+    <div class="hist-item">
+      <span>${new Date(h.date).toLocaleDateString('de-DE')}</span>
+      <span style="color:var(--gold)">${Store.fmt(h.amount)} Coins</span>
+      <span style="color:var(--red)">→ ${Store.fmt(h.total)} Coins</span>
+    </div>`).join('');
+}
+
+// Live timer update
+setInterval(() => {
+  const timerEl = document.getElementById('loanTimerEl');
+  if (!timerEl) return;
+  const bank = Store.getBank();
+  if (bank.loan <= 0) return;
+  const remaining = Math.max(0, bank.loanDue - Date.now());
+  const mins = Math.floor(remaining / 60000);
+  const secs = Math.floor((remaining % 60000) / 1000);
+  const overdue = remaining <= 0;
+  if (overdue) {
+    timerEl.textContent = '⚠️ ÜBERFÄLLIG!';
+    timerEl.className = 'loan-timer overdue';
+    Store.checkLoanOverdue();
+    renderLoanStatus();
+  } else {
+    timerEl.textContent = `⏱ Fällig in: ${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+  }
+}, 1000);
+
+Store.updateNavCoins();
+renderLoanStatus();
+renderHistory();
+</script>
+</body>
+</html>
