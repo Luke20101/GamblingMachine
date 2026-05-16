@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>VAULT — Login</title>
+<link rel="stylesheet" href="css/global.css"/>
+<style>
+body { display:flex; align-items:center; justify-content:center; min-height:100vh; overflow:hidden;
+  background: radial-gradient(ellipse at 50% 50%, #1a0a2a 0%, var(--bg) 70%); }
+
+.auth-wrap { width: min(92vw, 420px); animation: fadeUp .5s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+
+.auth-logo { font-family:'Bebas Neue',sans-serif; font-size:clamp(3.5rem,10vw,6rem); letter-spacing:.3em;
+  color:var(--gold); text-align:center;
+  text-shadow:0 0 50px rgba(240,192,64,.7),0 0 100px rgba(240,192,64,.3);
+  animation:logoPulse 3s ease-in-out infinite; margin-bottom:.1em; }
+@keyframes logoPulse{0%,100%{text-shadow:0 0 50px rgba(240,192,64,.7),0 0 100px rgba(240,192,64,.3);}50%{text-shadow:0 0 80px rgba(240,192,64,1),0 0 160px rgba(240,192,64,.5);}}
+.auth-sub { text-align:center; font-size:.8rem; letter-spacing:.5em; color:rgba(255,255,255,.25); text-transform:uppercase; margin-bottom:2.5rem; }
+
+.auth-tabs { display:flex; margin-bottom:1.5rem; border-bottom:1px solid var(--border); }
+.auth-tab { flex:1; font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:.2em;
+  padding:.75em; background:none; border:none; color:rgba(255,255,255,.3); cursor:pointer;
+  border-bottom:2px solid transparent; transition:color .2s, border-color .2s; }
+.auth-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+
+.auth-form { display:flex; flex-direction:column; gap:1rem; }
+.auth-form.hidden { display:none; }
+.field label { display:block; font-size:.75rem; letter-spacing:.2em; text-transform:uppercase;
+  color:rgba(255,255,255,.4); margin-bottom:.4rem; }
+.field input { width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:4px;
+  padding:.75rem 1rem; color:var(--text); font-family:'Rajdhani',sans-serif; font-size:1rem;
+  transition:border-color .2s; outline:none; box-sizing:border-box; }
+.field input:focus { border-color:var(--gold); }
+.auth-error { color:var(--red); font-size:.85rem; min-height:1.2em; }
+
+/* ── GAMBLE MODAL ── */
+#gamble-modal {
+  position:fixed; inset:0; background:rgba(0,0,0,.88); backdrop-filter:blur(8px);
+  display:flex; align-items:center; justify-content:center; z-index:500;
+  opacity:0; pointer-events:none; transition:opacity .4s;
+}
+#gamble-modal.open { opacity:1; pointer-events:all; }
+
+.gamble-box {
+  background:var(--bg2); border:1px solid rgba(255,255,255,.1); border-radius:12px;
+  padding:2rem; width:min(92vw,500px); text-align:center; box-sizing:border-box;
+  max-height:90vh; overflow-y:auto;
+}
+.gamble-title { font-family:'Bebas Neue',sans-serif; font-size:2.2rem; letter-spacing:.2em; color:var(--gold); margin-bottom:.5rem; }
+.gamble-sub { color:rgba(255,255,255,.4); font-size:.9rem; margin-bottom:1.5rem; line-height:1.6; }
+
+.amount-display {
+  font-family:'Bebas Neue',sans-serif; font-size:3.5rem; letter-spacing:.1em;
+  color:var(--gold); text-shadow:0 0 40px rgba(240,192,64,.6); min-height:1.2em;
+  animation:numFlicker .08s steps(1) infinite;
+}
+@keyframes numFlicker { 0%{opacity:1;}50%{opacity:.85;} }
+.amount-display.done { animation:none; }
+
+.odds-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; margin:1.2rem 0; }
+.odd-item {
+  background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:.5rem;
+  display:flex; flex-direction:column; gap:.2rem;
+}
+.odd-amount { font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:.1em; }
+.odd-chance { color:rgba(255,255,255,.3); font-size:.65rem; letter-spacing:.1em; }
+.odd-amount.t-gold   { color:var(--gold); }
+.odd-amount.t-red    { color:var(--red); }
+.odd-amount.t-green  { color:var(--green); }
+.odd-amount.t-blue   { color:var(--blue); }
+.odd-amount.t-purple { color:var(--purple); }
+
+/* ── GAMBLE REEL (komplett lokal, unabhängig von global.css) ── */
+#gamble-reel-wrap {
+  position:relative;
+  width:100%;
+  height:100px;
+  overflow:hidden;
+  border:2px solid var(--border);
+  border-radius:4px;
+  background:var(--bg2);
+  margin:0 0 1.2rem 0;
+  box-sizing:border-box;
+}
+#gamble-reel-wrap::before {
+  content:''; position:absolute; top:0; bottom:0;
+  left:50%; transform:translateX(-50%); width:3px;
+  background:var(--gold); box-shadow:0 0 12px var(--gold); z-index:20;
+}
+#gamble-reel-wrap::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(to right, rgba(10,10,15,.9) 0%, transparent 25%, transparent 75%, rgba(10,10,15,.9) 100%);
+  z-index:15; pointer-events:none;
+}
+#gamble-track {
+  display:flex;
+  position:absolute;
+  top:0; left:0;
+  height:100%;
+  will-change:transform;
+}
+.g-item {
+  flex-shrink:0;
+  width:100px; height:100px;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  border-right:1px solid var(--border);
+  font-size:2rem;
+  gap:4px;
+}
+.g-item span {
+  font-family:'Rajdhani',sans-serif; font-size:.6rem;
+  letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.4);
+}
+.g-item.r-gold   { background:linear-gradient(180deg,rgba(240,192,64,.15) 0%,transparent 100%); border-bottom:3px solid var(--gold); }
+.g-item.r-purple { background:linear-gradient(180deg,rgba(144,64,255,.15) 0%,transparent 100%); border-bottom:3px solid var(--purple); }
+.g-item.r-blue   { background:linear-gradient(180deg,rgba(48,128,255,.15) 0%,transparent 100%); border-bottom:3px solid var(--blue); }
+.g-item.r-red    { background:linear-gradient(180deg,rgba(224,48,48,.15) 0%,transparent 100%); border-bottom:3px solid var(--red); }
+.g-item.r-green  { background:linear-gradient(180deg,rgba(48,224,128,.15) 0%,transparent 100%); border-bottom:3px solid var(--green); }
+
+/* ── PARTIKEL ── */
+.particle {
+  position:fixed; border-radius:50%; pointer-events:none; z-index:9999;
+  animation:particleFly 1.2s ease-out forwards;
+}
+@keyframes particleFly {
+  0%   { transform:translate(0,0) scale(1); opacity:1; }
+  100% { transform:translate(var(--dx),var(--dy)) scale(0); opacity:0; }
+}
+</style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="auth-wrap">
+  <div class="auth-logo">VAULT</div>
+  <div class="auth-sub">Game Hub · Casino · Cases</div>
+
+  <div class="card">
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">LOGIN</button>
+      <button class="auth-tab" onclick="switchTab('register')">REGISTRIEREN</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="auth-form" id="form-login">
+      <div class="field"><label>Benutzername</label><input type="text" id="l-user" placeholder="dein_name" autocomplete="username"/></div>
+      <div class="field"><label>Passwort</label><input type="password" id="l-pass" placeholder="••••••" autocomplete="current-password"/></div>
+      <div class="auth-error" id="l-err"></div>
+      <button class="btn btn-gold" onclick="doLogin()">EINLOGGEN</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div class="auth-form hidden" id="form-register">
+      <div class="field"><label>Benutzername</label><input type="text" id="r-user" placeholder="cool_name" autocomplete="username"/></div>
+      <div class="field"><label>Passwort</label><input type="password" id="r-pass" placeholder="••••••" autocomplete="new-password"/></div>
+      <div class="field"><label>Passwort wiederholen</label><input type="password" id="r-pass2" placeholder="••••••" autocomplete="new-password"/></div>
+      <div class="auth-error" id="r-err"></div>
+      <button class="btn btn-gold" onclick="doRegister()">KONTO ERSTELLEN</button>
+    </div>
+  </div>
+</div>
+
+<!-- STARTUP GAMBLE MODAL -->
+<div id="gamble-modal">
+  <div class="gamble-box">
+    <div class="gamble-title">🎲 STARTKAPITAL GAMBLE</div>
+    <div class="gamble-sub">
+      Willkommen, <strong id="welcomeName" style="color:var(--gold)"></strong>!<br>
+      Spin das Rad um deinen Startkontostand zu bestimmen!
+    </div>
+
+    <div class="amount-display" id="amountDisplay">???</div>
+
+    <div class="odds-grid">
+      <div class="odd-item"><div class="odd-amount t-red">100</div><div class="odd-chance">35%</div></div>
+      <div class="odd-item"><div class="odd-amount t-red">250</div><div class="odd-chance">25%</div></div>
+      <div class="odd-item"><div class="odd-amount">500</div><div class="odd-chance">15%</div></div>
+      <div class="odd-item"><div class="odd-amount t-blue">1.000</div><div class="odd-chance">10%</div></div>
+      <div class="odd-item"><div class="odd-amount t-green">5.000</div><div class="odd-chance">7%</div></div>
+      <div class="odd-item"><div class="odd-amount t-gold">10.000</div><div class="odd-chance">5%</div></div>
+      <div class="odd-item"><div class="odd-amount t-purple">50.000</div><div class="odd-chance">2%</div></div>
+      <div class="odd-item"><div class="odd-amount t-purple">100.000</div><div class="odd-chance">0.9%</div></div>
+      <div class="odd-item"><div class="odd-amount t-gold" style="font-size:.85rem">1.000.000</div><div class="odd-chance">0.0001%</div></div>
+    </div>
+
+    <!-- Eigenes Reel mit eigenen IDs, unabhängig von global.css .reel-wrap -->
+    <div id="gamble-reel-wrap">
+      <div id="gamble-track"></div>
+    </div>
+
+    <button class="btn btn-gold" id="gambleBtn" style="width:100%;font-size:1.3rem;" onclick="doGamble()">
+      🎰 SPIN!
+    </button>
+    <div id="gambleResult" style="margin-top:1rem;display:none;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--green)" id="gambleResultText"></div>
+      <button class="btn btn-outline" style="width:100%;margin-top:1rem;font-size:1.1rem;" onclick="finishGamble()">ZUR LOBBY →</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/store.js"></script>
+<script>
+// Redirect wenn schon eingeloggt
+if (Store.getSession()) window.location.href = 'lobby.html';
+
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) =>
+    t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register'))
+  );
+  document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
+}
+
+function doLogin() {
+  const user = document.getElementById('l-user').value.trim();
+  const pass = document.getElementById('l-pass').value;
+  const err  = document.getElementById('l-err');
+  err.textContent = '';
+  const res = Store.login(user, pass);
+  if (!res.ok) { err.textContent = res.msg; return; }
+  window.location.href = 'lobby.html';
+}
+
+function doRegister() {
+  const user  = document.getElementById('r-user').value.trim();
+  const pass  = document.getElementById('r-pass').value;
+  const pass2 = document.getElementById('r-pass2').value;
+  const err   = document.getElementById('r-err');
+  err.textContent = '';
+  if (pass !== pass2) { err.textContent = 'Passwörter stimmen nicht überein.'; return; }
+  const res = Store.register(user, pass);
+  if (!res.ok) { err.textContent = res.msg; return; }
+  // Modal öffnen
+  document.getElementById('welcomeName').textContent = user;
+  document.getElementById('gamble-modal').classList.add('open');
+  // Reel bauen nachdem Modal sichtbar + gerendert ist
+  requestAnimationFrame(() => requestAnimationFrame(() => buildGambleReel()));
+}
+
+// Enter-Taste
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const loginHidden = document.getElementById('form-login').classList.contains('hidden');
+  if (loginHidden) doRegister(); else doLogin();
+});
+
+// ── STARTUP GAMBLE ──
+const AMOUNTS = [
+  {v:100,     r:'red',    label:'100',  icon:'💸'},
+  {v:250,     r:'red',    label:'250',  icon:'💸'},
+  {v:500,     r:'blue',   label:'500',  icon:'💰'},
+  {v:1000,    r:'blue',   label:'1K',   icon:'💰'},
+  {v:5000,    r:'green',  label:'5K',   icon:'💎'},
+  {v:10000,   r:'gold',   label:'10K',  icon:'🏆'},
+  {v:50000,   r:'purple', label:'50K',  icon:'👑'},
+  {v:100000,  r:'purple', label:'100K', icon:'👑'},
+  {v:1000000, r:'gold',   label:'1M',   icon:'🌈'},
+];
+const WEIGHTS = [35,25,15,10,7,5,2,0.9,0.0001];
+const BONUS_ICONS = ['🎲','⭐','🔥'];
+
+function weightedPick() {
+  const total = WEIGHTS.reduce((a,b)=>a+b,0);
+  let r = Math.random() * total;
+  for (let i=0; i<AMOUNTS.length; i++) {
+    r -= WEIGHTS[i];
+    if (r <= 0) return AMOUNTS[i];
+  }
+  return AMOUNTS[0];
+}
+
+function makeItem(a, forceIcon) {
+  const pool = [a.icon, ...BONUS_ICONS];
+  const icon = forceIcon || pool[Math.floor(Math.random()*pool.length)];
+  const el = document.createElement('div');
+  el.className = `g-item r-${a.r}`;
+  el.innerHTML = `${icon}<span>${a.label}</span>`;
+  return el;
+}
+
+function buildGambleReel() {
+  const track = document.getElementById('gamble-track');
+  track.innerHTML = '';
+  track.style.transition = 'none';
+  track.style.transform  = 'translateX(0)';
+  for (let i=0; i<55; i++) {
+    const a = AMOUNTS[Math.floor(Math.random()*AMOUNTS.length)];
+    track.appendChild(makeItem(a));
+  }
+}
+
+let gambleDone = false;
+
+function doGamble() {
+  if (gambleDone) return;
+
+  const track = document.getElementById('gamble-track');
+  // Fallback: Reel bauen falls noch leer
+  if (track.children.length === 0) buildGambleReel();
+
+  gambleDone = true;
+  document.getElementById('gambleBtn').disabled = true;
+
+  const winner = weightedPick();
+  const wrap   = document.getElementById('gamble-reel-wrap');
+
+  // Gewinner-Item an Position 44 setzen
+  const items = track.children;
+  if (items[44]) {
+    items[44].className   = `g-item r-${winner.r}`;
+    items[44].innerHTML   = `${winner.icon}<span>${winner.label}</span>`;
+  }
+
+  const ITEM_W  = 100;
+  const wrapW   = wrap.offsetWidth || 400;
+  const center  = wrapW / 2 - ITEM_W / 2;
+  const targetX = -(44 * ITEM_W - center);
+
+  // Reset & Slide-Animation
+  track.style.transition = 'none';
+  track.style.transform  = 'translateX(0)';
+  track.getBoundingClientRect(); // Force reflow
+  track.style.transition = 'transform 4s cubic-bezier(0.04,.5,.12,1)';
+  track.style.transform  = `translateX(${targetX}px)`;
+
+  // Zahlen-Flicker
+  const display = document.getElementById('amountDisplay');
+  let tick = 0;
+  const flicker = setInterval(() => {
+    const rnd = AMOUNTS[Math.floor(Math.random()*AMOUNTS.length)];
+    display.textContent = rnd.v.toLocaleString('de-DE') + ' COINS';
+    if (tick++ > 60) clearInterval(flicker);
+  }, 60);
+
+  setTimeout(() => {
+    clearInterval(flicker);
+    display.textContent = winner.v.toLocaleString('de-DE') + ' COINS';
+    display.classList.add('done');
+
+    // Konfetti
+    spawnParticles(
+      window.innerWidth/2, window.innerHeight/2,
+      winner.r==='gold'   ? ['#f0c040','#ffd700'] :
+      winner.r==='purple' ? ['#9040ff','#c080ff'] :
+      winner.r==='green'  ? ['#30e080','#00ff88'] :
+                            ['#3080ff','#00e5ff'],
+      40
+    );
+
+    Store.setCoins(winner.v);
+    Store.setFirstLoginDone();
+
+    document.getElementById('gambleResult').style.display = 'block';
+    document.getElementById('gambleResultText').textContent =
+      `🎉 ${winner.v.toLocaleString('de-DE')} COINS erhalten!`;
+  }, 4200);
+}
+
+function finishGamble() {
+  window.location.href = 'lobby.html';
+}
+
+// ── PARTIKEL-EFFEKT ──
+function spawnParticles(cx, cy, colors, count) {
+  for (let i=0; i<count; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size  = 6 + Math.random() * 8;
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = 80 + Math.random() * 220;
+    p.style.cssText = `
+      left:${cx}px; top:${cy}px;
+      width:${size}px; height:${size}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      --dx:${Math.cos(angle)*dist}px;
+      --dy:${Math.sin(angle)*dist}px;
+      animation-delay:${Math.random()*300}ms;
+      animation-duration:${900+Math.random()*600}ms;
+    `;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 1600);
+  }
+}
+</script>
+</body>
+</html>
