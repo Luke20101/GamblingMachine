@@ -114,7 +114,7 @@ body { display:flex; align-items:center; justify-content:center; min-height:100v
       <div class="odd-item"><div class="odd-amount t-gold" style="font-size:.85rem">1.000.000</div><div class="odd-chance">0.0001%</div></div>
     </div>
 
-    <div class="reel-wrap" style="margin:0 auto 1.5rem;" id="gambleReel">
+    <div class="reel-wrap" style="margin:0 auto 1.5rem;width:100%;max-width:100%;box-sizing:border-box;" id="gambleReel">
       <div class="reel-track" id="gambleTrack"></div>
     </div>
 
@@ -160,8 +160,10 @@ function doRegister() {
   if (!res.ok) { err.textContent = res.msg; return; }
   // Show gamble modal
   document.getElementById('welcomeName').textContent = user;
-  document.getElementById('gamble-modal').classList.add('open');
-  buildGambleReel();
+  const modal = document.getElementById('gamble-modal');
+  modal.classList.add('open');
+  // Wait two animation frames so the modal is fully rendered before building the reel
+  requestAnimationFrame(() => requestAnimationFrame(() => buildGambleReel()));
 }
 
 // Enter key support
@@ -223,7 +225,10 @@ function doGamble() {
   }
 
   const ITEM_W=100;
-  const center=reel.offsetWidth/2-ITEM_W/2;
+  // Force layout recalc so offsetWidth is correct after modal becomes visible
+  reel.getBoundingClientRect();
+  const reelW = reel.offsetWidth || 460;
+  const center=reelW/2-ITEM_W/2;
   const targetX=-(44*ITEM_W-center);
   track.style.transition='none';
   track.style.transform='translateX(0)';
